@@ -1,55 +1,87 @@
 package icu.csch.coffee
 
-import android.graphics.Color
-import android.media.Image
 import android.nfc.NfcAdapter
 import android.os.Bundle
-import android.view.View
-import android.widget.ImageButton
 import android.widget.Toast
+import android.widget.Toast.LENGTH_LONG
 import androidx.appcompat.app.AppCompatActivity
+import icu.csch.coffee.BeveragePurchaseState.Idle
+import icu.csch.coffee.BeveragePurchaseState.InputComplete
+import icu.csch.coffee.BeverageType.BLACK_COFFEE
+import icu.csch.coffee.BeverageType.COFFEE_WITH_MILK
+import icu.csch.coffee.databinding.ActivityMainBinding
 
 
 class MainActivity : AppCompatActivity() {
-    var schwarz: ImageButton? = null
+
+    private lateinit var binding: ActivityMainBinding
+
+    private var state: BeveragePurchaseState = Idle
+        set(value) {
+            field = value
+            onStateChange(value)
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setUpButtons()
+        setContentView(binding.root)
     }
 
+    private fun setUpButtons() {
+        binding.milch.setOnClickListener {
+            println("'Coffee with milk' selected")
+            onBeverageSelected(COFFEE_WITH_MILK)
+        }
 
-
+        binding.schwarz.setOnClickListener {
+            println("'Black coffee' selected")
+            onBeverageSelected(BLACK_COFFEE)
+        }
+    }
 
     // handling ACTION_TAG_DISCOVERED action from intent:
     override fun onResume() {
         super.onResume()
         if (intent.action == NfcAdapter.ACTION_TAG_DISCOVERED) {
-            Toast.makeText(this, "NFC Tag\n" +
-                    this.ByteArrayToHexString(intent.getByteArrayExtra(NfcAdapter.EXTRA_ID)),
-                    Toast.LENGTH_LONG).show()
+            val byteArray = intent.getByteArrayExtra(NfcAdapter.EXTRA_ID)
+            val hexString = byteArray?.toHexString() ?: ""
+            Toast.makeText(this, "NFC Tag\n$hexString", LENGTH_LONG).show()
+            onNfcTagDetected(hexString)
         }
     }
-    // Converting byte[] to hex string:
-    private fun ByteArrayToHexString(inarray: ByteArray?): String {
-        var i: Int
-        var j: Int
-        var `in`: Int
-        val hex = arrayOf("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F")
-        var out = ""
-        j = 0
-        while (j < inarray!!.size) {
-            `in` = inarray[j].toInt() and 0xff
-            i = `in` shr 4 and 0x0f
-            out += hex[i]
-            i = `in` and 0x0f
-            out += hex[i]
-            ++j
-        }
-        return out
-    }
-}
 
-private fun ImageButton.performClick(onTouchListener: View.OnTouchListener) {
+    /**
+     * Handle the selection of a beverage.
+     */
+    private fun onBeverageSelected(beverageType: BeverageType) {
+        state = state.handleBeverageSelection(beverageType)
+    }
+
+    /**
+     * Handle the detection of an NFC tag.
+     */
+    private fun onNfcTagDetected(nfcTagIdentifier: String) {
+        state = state.handleNfcTagDetection(nfcTagIdentifier)
+    }
+
+    /**
+     * Handle the change of the state.
+     */
+    private fun onStateChange(newState: BeveragePurchaseState) {
+        if (newState is InputComplete) {
+            performPurchase(
+                newState.beverageType,
+                newState.nfcTagIdentifier
+            )
+        }
+    }
+
+    private fun performPurchase(beverageType: BeverageType, nfcTagIdentifier: String) {
+        // TODO
+        state = Idle
+    }
+
 
 }
